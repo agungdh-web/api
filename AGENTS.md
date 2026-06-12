@@ -11,6 +11,22 @@
 
 No lint/format/typecheck commands are configured (Spring Boot project, no Checkstyle/Spotless).
 
+### Flyway (manual via Makefile)
+
+Flyway does **not** auto-migrate on startup. Use `make`:
+
+- `make` (or `make help`) — show available commands
+- `make migrate` — run pending migrations
+- `make refresh` — drop all tables and re-run migrations (confirms `y/N`)
+
+**Always run `make migrate` before starting the app** if the schema hasn't been applied yet.
+
+### Docker services
+
+```sh
+docker-compose up -d   # postgres, valkey (redis), minio, mailpit, adminer
+```
+
 ## Tech Stack & Versions
 
 - **Java 25** (`<java.version>25</java.version>` in pom.xml)
@@ -27,7 +43,12 @@ No lint/format/typecheck commands are configured (Spring Boot project, no Checks
 
 ```
 src/main/java/id/my/agungdh/api/   — base package
-src/main/resources/application.yaml — application config (datasource, Redis, Flyway, MinIO, mail)
+  cli/                             — FlywayCli (manual migration runner)
+  config/                          — FlywayConfig (manual Flyway bean, no auto-migrate)
+  dto/                             — Java records, public-facing
+  entity/                          — JPA entities
+  mapper/                          — MapStruct interfaces
+src/main/resources/application.yaml — datasource, Redis, mail, MinIO
 src/main/resources/db/migration/    — Flyway SQL migrations
 src/test/java/id/my/agungdh/api/    — tests
 ```
@@ -39,6 +60,8 @@ src/test/java/id/my/agungdh/api/    — tests
 - **`id`**: `SERIAL` / `@GeneratedValue(strategy = IDENTITY)` — internal, **never exposed** in API responses
 - **`uuid`**: `UUID` field generated via `UUID.randomUUID()` — the **public identifier**, always exposed in DTOs
 - **UUID index**: use a **hash index** in Flyway migrations (`CREATE INDEX ... USING hash (uuid)`) — **no unique constraint** on `uuid`
+- **FKs in DB**: reference `id` (internal), never `uuid`
+- **Slug columns**: always `UNIQUE` (in migration and `@Column(unique = true)`)
 
 Example entity structure:
 ```java
@@ -88,28 +111,33 @@ public record FooDTO(
 
 - Interface annotated `@Mapper(componentModel = "spring")`
 - Define methods: `toEntity(DTO)`, `toDTO(Entity)`, `toDTOList(List<Entity>)`
+- **Always add `@Mapping(target = "id", ignore = true)`** on every `toEntity` method — DTOs never carry `id`
 - MapStruct generates the implementation at compile time
 
 Example:
 ```java
 @Mapper(componentModel = "spring")
 public interface FooMapper {
+    @Mapping(target = "id", ignore = true)
     Foo toEntity(FooDTO dto);
+
     FooDTO toDTO(Foo entity);
+
     List<FooDTO> toDTOList(List<Foo> entities);
 }
 ```
 
 ## Framework Quirks
 
-- **No datasource or Redis connection configured** — the app will fail to start without providing `spring.datasource.*` and `spring.data.redis.*` properties or disabling auto-configuration.
+- **Flyway auto-configuration is not provided by Spring Boot 4.0.x** — Flyway is configured manually via `FlywayConfig.java` (a `@Configuration` class that creates a `Flyway` bean). Migrations must be triggered manually via `make migrate` (runs `FlywayCli.java`).
 - **SpringDoc OpenAPI is on the classpath** — it auto-generates API docs; exclude it if you don't want Swagger UI exposed.
 - **`.idea/` is gitignored** — IntelliJ project settings are local-only.
 - **`HELP.md` is gitignored** — it's the generated Getting Started guide.
-- **Flyway auto-configuration is not provided by Spring Boot 4.0.x** — Flyway is configured manually via `FlywayConfig.java` (a `@Configuration` class that creates a `Flyway` bean and calls `migrate()`). There is no `spring.flyway.*` property support; datasource is injected directly.
+- **DevTools triggers auto-restart** on classpath changes in dev.
+- **Virtual threads enabled** (`spring.threads.virtual.enabled: true`).
 
 ## Testing
 
 - Tests use **JUnit 5** (via Spring Boot starter test).
-- The only existing test is `@SpringBootTest contextLoads()` — it requires a running PostgreSQL and Redis to pass, or `@SpringBootTest` can be scoped with `@AutoConfigureTestDatabase` / test slices.
+- The only existing test is `@SpringBootTest contextLoads()` — it requires a running PostgreSQL and Redis to pass.
 - Test starter dependencies are explicitly declared (not via the umbrella starter-test), so test slices (`@DataJpaTest`, `@WebMvcTest`, etc.) are available individually.
