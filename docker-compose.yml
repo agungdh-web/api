@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: web
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - valkey_data:/data
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "127.0.0.1:8083:8080"
+  silo:
+    image: pgsty/minio:latest
+    container_name: silo
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - silo_data:/data
+volumes:
+  postgres_data:
+  valkey_data:
+  silo_data:
