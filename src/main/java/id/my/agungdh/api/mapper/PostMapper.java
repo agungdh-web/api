@@ -12,8 +12,6 @@ public interface PostMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "comments", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
     Post toEntity(PostDTO dto);
 
     PostDTO toDTO(Post entity);

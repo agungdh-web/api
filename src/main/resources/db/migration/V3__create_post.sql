@@ -5,10 +5,7 @@ CREATE TABLE post (
     slug VARCHAR(255) NOT NULL UNIQUE,
     content TEXT,
     excerpt VARCHAR(500),
-    published BOOLEAN NOT NULL DEFAULT FALSE,
     published_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP,
     category_id BIGINT NOT NULL REFERENCES category(id)
 );
 CREATE INDEX idx_post_uuid ON post USING hash (uuid);

@@ -1,4 +1,10 @@
-.PHONY: migrate refresh help
+.PHONY: help migrate refresh
+
+help:
+	@echo "Available commands:"
+	@echo "  make migrate     Run Flyway migrations"
+	@echo "  make refresh     Drop all tables and re-run migrations"
+	@echo "  make help        Show this help message"
 
 migrate:
 	./mvnw -q exec:java \
@@ -15,9 +21,3 @@ refresh:
 	else \
 		echo "Cancelled."; \
 	fi
-
-help:
-	@echo "Available commands:"
-	@echo "  make migrate     Run Flyway migrations"
-	@echo "  make refresh     Drop all tables and re-run migrations"
-	@echo "  make help        Show this help message"

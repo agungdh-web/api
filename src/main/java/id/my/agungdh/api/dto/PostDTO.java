@@ -13,10 +13,7 @@ public record PostDTO(
     @NotBlank String slug,
     String content,
     String excerpt,
-    boolean published,
     LocalDateTime publishedAt,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt,
     @NotNull CategoryDTO category,
     List<TagDTO> tags
 ) {}

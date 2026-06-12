@@ -51,17 +51,7 @@ public class Post {
     @Column(length = 500)
     private String excerpt;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean published = false;
-
     private LocalDateTime publishedAt;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    private LocalDateTime updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
