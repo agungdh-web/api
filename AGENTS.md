@@ -106,6 +106,7 @@ public interface FooMapper {
 - **SpringDoc OpenAPI is on the classpath** — it auto-generates API docs; exclude it if you don't want Swagger UI exposed.
 - **`.idea/` is gitignored** — IntelliJ project settings are local-only.
 - **`HELP.md` is gitignored** — it's the generated Getting Started guide.
+- **Flyway auto-configuration is not provided by Spring Boot 4.0.x** — Flyway is configured manually via `FlywayConfig.java` (a `@Configuration` class that creates a `Flyway` bean and calls `migrate()`). There is no `spring.flyway.*` property support; datasource is injected directly.
 
 ## Testing
 
