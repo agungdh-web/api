@@ -8,6 +8,8 @@ spring:
     url: jdbc:postgresql://localhost:5432/web
     username: admin
     password: admin
+  flyway:
+    enabled: true
   data:
     redis:
       host: localhost

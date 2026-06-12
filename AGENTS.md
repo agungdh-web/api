@@ -16,21 +16,89 @@ No lint/format/typecheck commands are configured (Spring Boot project, no Checks
 - **Java 25** (`<java.version>25</java.version>` in pom.xml)
 - **Spring Boot 4.0.7** — parent POM, plugin, and all starters are 4.0.x
 - **Build:** Maven with wrapper (`mvnw`)
-- **Database:** PostgreSQL (runtime driver), JPA (Hibernate)
+- **Database:** PostgreSQL (runtime driver), JPA (Hibernate), **Flyway** for migrations
 - **Cache:** Redis (spring-boot-starter-data-redis)
 - **API docs:** SpringDoc OpenAPI 3.0.2 (Swagger UI at `/swagger-ui.html`)
 - **Lombok** with annotation processor configured in `maven-compiler-plugin` for both compile and testCompile phases
+- **MapStruct 1.6.3** for entity ↔ DTO mapping, with `lombok-mapstruct-binding` (0.2.0)
 - **Spring Boot DevTools** included (runtime, optional — auto-restart on classpath changes)
 
 ## Project Structure
 
 ```
-src/main/java/id/my/agungdh/api/   — base package (no sub-packages yet)
-src/main/resources/application.yaml — minimal config (only `spring.application.name: api`)
+src/main/java/id/my/agungdh/api/   — base package
+src/main/resources/application.yaml — application config (datasource, Redis, Flyway, MinIO, mail)
+src/main/resources/db/migration/    — Flyway SQL migrations
 src/test/java/id/my/agungdh/api/    — tests
 ```
 
-The project is a fresh Spring Boot skeleton with no controllers, services, entities, or configuration classes yet. The only files are `ApiApplication.java` (entry point) and `ApiApplicationTests.java` (context-loads smoke test).
+## Entity / DTO / Mapper Conventions
+
+### Entity
+
+- **`id`**: `SERIAL` / `@GeneratedValue(strategy = IDENTITY)` — internal, **never exposed** in API responses
+- **`uuid`**: `UUID` field generated via `UUID.randomUUID()` — the **public identifier**, always exposed in DTOs
+- **UUID index**: use a **hash index** in Flyway migrations (`CREATE INDEX ... USING hash (uuid)`) — **no unique constraint** on `uuid`
+
+Example entity structure:
+```java
+@Entity
+@Table(name = "foo")
+public class Foo {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private UUID uuid;
+
+    // business fields...
+}
+```
+
+### Flyway Migrations
+
+- Place SQL files in `src/main/resources/db/migration/`
+- Naming: `V{version}__{description}.sql` (double underscore after version)
+- Always define hash indexes on `uuid` columns in the migration:
+```sql
+CREATE TABLE foo (
+    id BIGSERIAL PRIMARY KEY,
+    uuid UUID NOT NULL,
+    -- other columns...
+);
+CREATE INDEX idx_foo_uuid ON foo USING hash (uuid);
+```
+
+### DTO
+
+- Use **Java `record`** (not class with Lombok)
+- Only expose the public `uuid` field — never expose `id`
+- Use validation annotations from `jakarta.validation` on the record components
+
+Example:
+```java
+public record FooDTO(
+    UUID uuid,
+    @NotBlank String name
+) {}
+```
+
+### Mapper (MapStruct)
+
+- Interface annotated `@Mapper(componentModel = "spring")`
+- Define methods: `toEntity(DTO)`, `toDTO(Entity)`, `toDTOList(List<Entity>)`
+- MapStruct generates the implementation at compile time
+
+Example:
+```java
+@Mapper(componentModel = "spring")
+public interface FooMapper {
+    Foo toEntity(FooDTO dto);
+    FooDTO toDTO(Foo entity);
+    List<FooDTO> toDTOList(List<Foo> entities);
+}
+```
 
 ## Framework Quirks
 
