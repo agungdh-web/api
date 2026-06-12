@@ -1,7 +1,6 @@
 package id.my.agungdh.api.config;
 
 import org.flywaydb.core.Flyway;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,10 +11,8 @@ public class FlywayConfig {
 
     @Bean
     public Flyway flyway(DataSource dataSource) {
-        Flyway flyway = Flyway.configure()
+        return Flyway.configure()
                 .dataSource(dataSource)
                 .load();
-        flyway.migrate();
-        return flyway;
     }
 }
