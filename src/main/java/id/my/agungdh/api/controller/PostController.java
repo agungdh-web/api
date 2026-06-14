@@ -1,10 +1,10 @@
 package id.my.agungdh.api.controller;
 
+import id.my.agungdh.api.dto.PageResponse;
 import id.my.agungdh.api.dto.PostDTO;
 import id.my.agungdh.api.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +19,7 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping
-    public Page<PostDTO> findAll(Pageable pageable) {
+    public PageResponse<PostDTO> findAll(Pageable pageable) {
         return postService.findAll(pageable);
     }
 

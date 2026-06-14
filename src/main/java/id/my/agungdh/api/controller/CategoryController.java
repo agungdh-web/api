@@ -1,10 +1,10 @@
 package id.my.agungdh.api.controller;
 
 import id.my.agungdh.api.dto.CategoryDTO;
+import id.my.agungdh.api.dto.PageResponse;
 import id.my.agungdh.api.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +19,7 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @GetMapping
-    public Page<CategoryDTO> findAll(Pageable pageable) {
+    public PageResponse<CategoryDTO> findAll(Pageable pageable) {
         return categoryService.findAll(pageable);
     }
 

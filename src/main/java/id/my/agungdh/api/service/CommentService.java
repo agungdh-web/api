@@ -1,13 +1,13 @@
 package id.my.agungdh.api.service;
 
 import id.my.agungdh.api.dto.CommentDTO;
+import id.my.agungdh.api.dto.PageResponse;
 import id.my.agungdh.api.entity.Comment;
 import id.my.agungdh.api.entity.Post;
 import id.my.agungdh.api.mapper.CommentMapper;
 import id.my.agungdh.api.repository.CommentRepository;
 import id.my.agungdh.api.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -34,8 +34,8 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CommentDTO> findAll(Pageable pageable) {
-        return commentRepository.findByParentIsNull(pageable).map(commentMapper::toDTO);
+    public PageResponse<CommentDTO> findAll(Pageable pageable) {
+        return PageResponse.from(commentRepository.findByParentIsNull(pageable).map(commentMapper::toDTO));
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,6 @@
 package id.my.agungdh.api.service;
 
+import id.my.agungdh.api.dto.PageResponse;
 import id.my.agungdh.api.dto.PostDTO;
 import id.my.agungdh.api.dto.TagDTO;
 import id.my.agungdh.api.entity.Category;
@@ -10,7 +11,6 @@ import id.my.agungdh.api.repository.CategoryRepository;
 import id.my.agungdh.api.repository.PostRepository;
 import id.my.agungdh.api.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,8 +39,8 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PostDTO> findAll(Pageable pageable) {
-        return postRepository.findAll(pageable).map(postMapper::toDTO);
+    public PageResponse<PostDTO> findAll(Pageable pageable) {
+        return PageResponse.from(postRepository.findAll(pageable).map(postMapper::toDTO));
     }
 
     @Transactional(readOnly = true)

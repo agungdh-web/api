@@ -1,11 +1,11 @@
 package id.my.agungdh.api.service;
 
 import id.my.agungdh.api.dto.CategoryDTO;
+import id.my.agungdh.api.dto.PageResponse;
 import id.my.agungdh.api.entity.Category;
 import id.my.agungdh.api.mapper.CategoryMapper;
 import id.my.agungdh.api.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -30,8 +30,8 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CategoryDTO> findAll(Pageable pageable) {
-        return categoryRepository.findAll(pageable).map(categoryMapper::toDTO);
+    public PageResponse<CategoryDTO> findAll(Pageable pageable) {
+        return PageResponse.from(categoryRepository.findAll(pageable).map(categoryMapper::toDTO));
     }
 
     @Transactional(readOnly = true)
