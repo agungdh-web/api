@@ -59,7 +59,11 @@ All list endpoints use **cursor-based pagination** (no offset/Pageable).
 
 ### Contract
 
-Request: `?cursor=<uuid>&size=<n>` (both optional; `size` default 20, max 100)
+Request: `?cursor=<uuid>&sort=<field>&dir=<asc|desc>&size=<n>`
+- All params optional; `size` default 20, max 100.
+- No `sort` param → default sort = `id DESC` (newest first by internal auto-increment `id`).
+- `sort` provided without `dir` → default `dir` = `asc`.
+- Invalid `sort` field or `dir` value → `400 BAD_REQUEST`.
 
 Response:
 ```json
@@ -73,31 +77,40 @@ Response:
 
 - The cursor is the **uuid** of the last visible item in the previous response (`meta.nextCursor`).
 - FE just copies `nextCursor` from the response into the next request — no encoding/decoding needed.
-- Server resolves `uuid` → internal `id` (via hash index, O(1)) and runs `WHERE id < :id ORDER BY id DESC LIMIT n+1`.
+- Server resolves `uuid` → internal `id` (via hash index, O(1)) AND looks up the sort field value of the cursor entity. WHERE clause is:
+  ```
+  (sort_field > :sortValue) OR (sort_field = :sortValue AND id > :id)
+  ```
+  (flipped for DESC). `id` is always the secondary sort (tie-breaker).
+- **FE must pass the same `sort` and `dir` on every request along with the cursor** — the server uses them to generate the WHERE clause. Switching `sort` between requests requires a fresh cursor (the old one no longer points to the right place).
 - Invalid uuid format or uuid not found → `400 BAD_REQUEST`.
 - `size` must be `1..100` (see `CursorResponse.MAX_SIZE`) — otherwise `400 BAD_REQUEST`.
 
 ### Sort
 
 - Default: `id DESC` (newest first, by internal auto-increment `id`). PK-indexed, scales well.
+- Each entity has an allowlist of sortable fields. Fields not in the allowlist → 400.
+  - Category: `id`, `name`
+  - Tag: `id`, `name`
+  - Post: `id` (only — `publishedAt` is nullable, not currently allowed)
+  - Comment: `id`, `createdAt`
+- `id` is always the secondary sort (tie-breaker) for any sort.
 
-### Repository convention
+### Implementation
 
-Two methods per repository, both returning `List<E>` (not `Page` / `Slice`):
-- `findAllByOrderByIdDesc(Pageable)` — first page (no cursor)
-- `findByIdLessThanOrderByIdDesc(Long id, Pageable)` — subsequent pages
-
-For filtered lists (e.g. `Comment` with `parent IS NULL`), prefix the methods with the filter clause:
-- `findByParentIsNullOrderByIdDesc(Pageable)`
-- `findByParentIsNullAndIdLessThanOrderByIdDesc(Long id, Pageable)`
-
-Service fetches `size + 1` and checks `result.size() > size` to detect `hasMore`.
+- `BaseRepository<E>` extends `JpaRepository<E, Long>` + `JpaSpecificationExecutor<E>`.
+- Service builds a `Specification` for the cursor WHERE clause (composable with entity-specific filters, e.g. `parent IS NULL` for top-level comments).
+- `CursorSupport` (static utility) holds:
+  - `validateSize`, `parseOrNull`, `build` (response wrapper)
+  - `parseSort(sort, dir, allowedFields)` → `ParsedSort(field, dir, Sort)` (with `id` as secondary sort)
+  - `whereAfterCursor(cursorId, cursorSortValue, sortField, dir)` → `Specification<E>` with the OR-clause
+- `findAll(Specification, Pageable).getContent()` returns the entity list (an extra count query is run by `JpaSpecificationExecutor` — acceptable trade-off vs. raw `EntityManager`).
 
 ### Why cursor (not offset)?
 
 - Stable when items are inserted/deleted between requests (offsets shift).
-- `id DESC` uses the PK index — no extra sort cost.
-- No "total count" query (expensive on large tables).
+- Sort uses the PK index (`id`) plus one extra column — still scales.
+- No "total count" query needed for the client (the count inside `JpaSpecificationExecutor` is internal and not exposed).
 
 ## Entity / DTO / Mapper Conventions
 

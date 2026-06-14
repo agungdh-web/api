@@ -20,8 +20,10 @@ public class CategoryController {
     @GetMapping
     public CursorResponse<CategoryDTO> findAll(
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "20") int size) {
-        return categoryService.findAll(cursor, size);
+        return categoryService.findAll(cursor, sort, dir, size);
     }
 
     @GetMapping("/{uuid}")

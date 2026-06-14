@@ -11,17 +11,28 @@ import id.my.agungdh.api.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class CommentService {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("id", "createdAt");
+    private static final Map<String, Function<Comment, Comparable<?>>> SORT_VALUE_EXTRACTORS = Map.of(
+            "id", Comment::getId,
+            "createdAt", Comment::getCreatedAt
+    );
 
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
@@ -37,14 +48,23 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponse<CommentDTO> findAll(String cursor, int size) {
+    public CursorResponse<CommentDTO> findAll(String cursor, String sort, String dir, int size) {
         CursorSupport.validateSize(size);
         UUID cursorUuid = CursorSupport.parseOrNull(cursor);
-        Pageable pageable = PageRequest.of(0, size + 1);
-        List<Comment> entities = (cursorUuid == null)
-                ? commentRepository.findByParentIsNullOrderByIdDesc(pageable)
-                : commentRepository.findByParentIsNullAndIdLessThanOrderByIdDesc(
-                        CursorSupport.resolveId(commentRepository::findByUuid, cursorUuid, Comment::getId), pageable);
+        CursorSupport.ParsedSort parsed = (sort == null || sort.isBlank())
+                ? new CursorSupport.ParsedSort("id", Sort.Direction.DESC, CursorSupport.DEFAULT_SORT)
+                : CursorSupport.parseSort(sort, dir, ALLOWED_SORT_FIELDS);
+        Pageable pageable = PageRequest.of(0, size + 1, parsed.sort());
+
+        Specification<Comment> spec = (root, q, cb) -> cb.isNull(root.get("parent"));
+        if (cursorUuid != null) {
+            Comment cursorEntity = commentRepository.findByUuid(cursorUuid)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor"));
+            Comparable<?> sortValue = SORT_VALUE_EXTRACTORS.get(parsed.field()).apply(cursorEntity);
+            spec = spec.and(CursorSupport.whereAfterCursor(cursorEntity.getId(), sortValue, parsed.field(), parsed.dir()));
+        }
+
+        List<Comment> entities = commentRepository.findAll(spec, pageable).getContent();
         return CursorSupport.build(entities, size, commentMapper::toDTO, Comment::getUuid);
     }
 

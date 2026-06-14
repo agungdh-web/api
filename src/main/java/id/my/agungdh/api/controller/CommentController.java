@@ -20,8 +20,10 @@ public class CommentController {
     @GetMapping
     public CursorResponse<CommentDTO> findAll(
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "20") int size) {
-        return commentService.findAll(cursor, size);
+        return commentService.findAll(cursor, sort, dir, size);
     }
 
     @GetMapping("/{uuid}")

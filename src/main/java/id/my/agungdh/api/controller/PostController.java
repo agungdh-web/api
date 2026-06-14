@@ -20,8 +20,10 @@ public class PostController {
     @GetMapping
     public CursorResponse<PostDTO> findAll(
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "20") int size) {
-        return postService.findAll(cursor, size);
+        return postService.findAll(cursor, sort, dir, size);
     }
 
     @GetMapping("/{uuid}")

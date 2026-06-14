@@ -20,8 +20,10 @@ public class TagController {
     @GetMapping
     public CursorResponse<TagDTO> findAll(
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "20") int size) {
-        return tagService.findAll(cursor, size);
+        return tagService.findAll(cursor, sort, dir, size);
     }
 
     @GetMapping("/{uuid}")

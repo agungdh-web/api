@@ -14,17 +14,27 @@ import id.my.agungdh.api.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class PostService {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("id");
+    private static final Map<String, Function<Post, Comparable<?>>> SORT_VALUE_EXTRACTORS = Map.of(
+            "id", Post::getId
+    );
 
     private final PostRepository postRepository;
     private final CategoryRepository categoryRepository;
@@ -41,14 +51,23 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponse<PostDTO> findAll(String cursor, int size) {
+    public CursorResponse<PostDTO> findAll(String cursor, String sort, String dir, int size) {
         CursorSupport.validateSize(size);
         UUID cursorUuid = CursorSupport.parseOrNull(cursor);
-        Pageable pageable = PageRequest.of(0, size + 1);
-        List<Post> entities = (cursorUuid == null)
-                ? postRepository.findAllByOrderByIdDesc(pageable)
-                : postRepository.findByIdLessThanOrderByIdDesc(
-                        CursorSupport.resolveId(postRepository::findByUuid, cursorUuid, Post::getId), pageable);
+        CursorSupport.ParsedSort parsed = (sort == null || sort.isBlank())
+                ? new CursorSupport.ParsedSort("id", Sort.Direction.DESC, CursorSupport.DEFAULT_SORT)
+                : CursorSupport.parseSort(sort, dir, ALLOWED_SORT_FIELDS);
+        Pageable pageable = PageRequest.of(0, size + 1, parsed.sort());
+
+        Specification<Post> spec = null;
+        if (cursorUuid != null) {
+            Post cursorEntity = postRepository.findByUuid(cursorUuid)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor"));
+            Comparable<?> sortValue = SORT_VALUE_EXTRACTORS.get(parsed.field()).apply(cursorEntity);
+            spec = CursorSupport.whereAfterCursor(cursorEntity.getId(), sortValue, parsed.field(), parsed.dir());
+        }
+
+        List<Post> entities = postRepository.findAll(spec, pageable).getContent();
         return CursorSupport.build(entities, size, postMapper::toDTO, Post::getUuid);
     }
 
