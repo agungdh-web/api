@@ -41,10 +41,8 @@ public class CommentService {
     @Transactional
     public CommentDTO create(CommentDTO dto) {
         Comment comment = commentMapper.toEntity(dto);
-        comment.setUuid(UUID.randomUUID());
         resolveRelations(comment, dto);
-        comment = commentRepository.save(comment);
-        return commentMapper.toDTO(comment);
+        return commentMapper.toDTO(commentRepository.save(comment));
     }
 
     @Transactional(readOnly = true)
@@ -81,7 +79,6 @@ public class CommentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
         commentMapper.updateEntity(dto, comment);
         resolveRelations(comment, dto);
-        comment = commentRepository.save(comment);
         return commentMapper.toDTO(comment);
     }
 

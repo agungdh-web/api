@@ -44,10 +44,8 @@ public class PostService {
     @Transactional
     public PostDTO create(PostDTO dto) {
         Post post = postMapper.toEntity(dto);
-        post.setUuid(UUID.randomUUID());
         resolveRelations(post, dto);
-        post = postRepository.save(post);
-        return postMapper.toDTO(post);
+        return postMapper.toDTO(postRepository.save(post));
     }
 
     @Transactional(readOnly = true)
@@ -84,7 +82,6 @@ public class PostService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
         postMapper.updateEntity(dto, post);
         resolveRelations(post, dto);
-        post = postRepository.save(post);
         return postMapper.toDTO(post);
     }
 

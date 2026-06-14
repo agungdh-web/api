@@ -38,9 +38,7 @@ public class TagService {
     @Transactional
     public TagDTO create(TagDTO dto) {
         Tag tag = tagMapper.toEntity(dto);
-        tag.setUuid(UUID.randomUUID());
-        tag = tagRepository.save(tag);
-        return tagMapper.toDTO(tag);
+        return tagMapper.toDTO(tagRepository.save(tag));
     }
 
     @Transactional(readOnly = true)
@@ -76,7 +74,6 @@ public class TagService {
         Tag tag = tagRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tag not found"));
         tagMapper.updateEntity(dto, tag);
-        tag = tagRepository.save(tag);
         return tagMapper.toDTO(tag);
     }
 

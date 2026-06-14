@@ -12,6 +12,7 @@ import java.util.List;
 public interface PostMapper {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "comments", ignore = true)
     Post toEntity(PostDTO dto);
 

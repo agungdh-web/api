@@ -12,6 +12,7 @@ import java.util.List;
 public interface TagMapper {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "uuid", ignore = true)
     Tag toEntity(TagDTO dto);
 
     TagDTO toDTO(Tag entity);

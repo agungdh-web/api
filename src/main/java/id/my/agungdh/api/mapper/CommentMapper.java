@@ -16,6 +16,7 @@ public interface CommentMapper {
     CommentDTO toDTO(Comment entity);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "post", ignore = true)
     @Mapping(target = "parent", ignore = true)
     @Mapping(target = "replies", ignore = true)

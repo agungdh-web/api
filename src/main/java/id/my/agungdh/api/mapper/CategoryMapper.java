@@ -12,6 +12,7 @@ import java.util.List;
 public interface CategoryMapper {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "uuid", ignore = true)
     Category toEntity(CategoryDTO dto);
 
     CategoryDTO toDTO(Category entity);

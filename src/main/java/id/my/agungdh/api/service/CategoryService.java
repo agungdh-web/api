@@ -38,9 +38,7 @@ public class CategoryService {
     @Transactional
     public CategoryDTO create(CategoryDTO dto) {
         Category category = categoryMapper.toEntity(dto);
-        category.setUuid(UUID.randomUUID());
-        category = categoryRepository.save(category);
-        return categoryMapper.toDTO(category);
+        return categoryMapper.toDTO(categoryRepository.save(category));
     }
 
     @Transactional(readOnly = true)
@@ -76,7 +74,6 @@ public class CategoryService {
         Category category = categoryRepository.findByUuid(uuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         categoryMapper.updateEntity(dto, category);
-        category = categoryRepository.save(category);
         return categoryMapper.toDTO(category);
     }
 
