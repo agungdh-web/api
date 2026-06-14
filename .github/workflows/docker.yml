@@ -61,26 +61,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Set GHCR package visibility to public
-        if: github.event_name != 'pull_request'
-        env:
-          OWNER: ${{ github.repository_owner }}
-          PACKAGE: ${{ github.event.repository.name }}
-        run: |
-          OWNER_TYPE=$(gh api "repos/${OWNER}/${PACKAGE}" --jq '.owner.type')
-          if [ "$OWNER_TYPE" = "Organization" ]; then
-            ENDPOINT="orgs/${OWNER}/packages/container/${PACKAGE}"
-          else
-            ENDPOINT="user/packages/container/${PACKAGE}"
-          fi
-          for i in $(seq 1 10); do
-            if gh api -X PATCH "$ENDPOINT" -f visibility=public; then
-              echo "GHCR package visibility set to public"
-              exit 0
-            fi
-            echo "Attempt $i failed, retrying in 3s..."
-            sleep 3
-          done
-          echo "Failed to set visibility after 10 attempts"
-          exit 1
