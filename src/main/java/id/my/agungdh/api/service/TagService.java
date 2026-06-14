@@ -1,6 +1,7 @@
 package id.my.agungdh.api.service;
 
 import id.my.agungdh.api.dto.CursorResponse;
+import id.my.agungdh.api.dto.CursorSupport;
 import id.my.agungdh.api.dto.TagDTO;
 import id.my.agungdh.api.entity.Tag;
 import id.my.agungdh.api.mapper.TagMapper;
@@ -33,16 +34,14 @@ public class TagService {
 
     @Transactional(readOnly = true)
     public CursorResponse<TagDTO> findAll(String cursor, int size) {
+        CursorSupport.validateSize(size);
+        UUID cursorUuid = CursorSupport.parseOrNull(cursor);
         Pageable pageable = PageRequest.of(0, size + 1);
-        List<Tag> entities = (cursor == null)
+        List<Tag> entities = (cursorUuid == null)
                 ? tagRepository.findAllByOrderByIdDesc(pageable)
-                : tagRepository.findByIdLessThanOrderByIdDesc(resolveId(cursor), pageable);
-
-        boolean hasMore = entities.size() > size;
-        List<Tag> page = hasMore ? entities.subList(0, size) : entities;
-        List<TagDTO> data = page.stream().map(tagMapper::toDTO).toList();
-        String nextCursor = hasMore ? page.get(page.size() - 1).getUuid().toString() : null;
-        return new CursorResponse<>(data, new CursorResponse.Meta(nextCursor, size, hasMore));
+                : tagRepository.findByIdLessThanOrderByIdDesc(
+                        CursorSupport.resolveId(tagRepository::findByUuid, cursorUuid, Tag::getId), pageable);
+        return CursorSupport.build(entities, size, tagMapper::toDTO, Tag::getUuid);
     }
 
     @Transactional(readOnly = true)
@@ -67,17 +66,5 @@ public class TagService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tag not found");
         }
         tagRepository.deleteByUuid(uuid);
-    }
-
-    private Long resolveId(String cursor) {
-        UUID uuid;
-        try {
-            uuid = UUID.fromString(cursor);
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor");
-        }
-        return tagRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor"))
-                .getId();
     }
 }

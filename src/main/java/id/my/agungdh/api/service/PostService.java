@@ -1,6 +1,7 @@
 package id.my.agungdh.api.service;
 
 import id.my.agungdh.api.dto.CursorResponse;
+import id.my.agungdh.api.dto.CursorSupport;
 import id.my.agungdh.api.dto.PostDTO;
 import id.my.agungdh.api.dto.TagDTO;
 import id.my.agungdh.api.entity.Category;
@@ -41,16 +42,14 @@ public class PostService {
 
     @Transactional(readOnly = true)
     public CursorResponse<PostDTO> findAll(String cursor, int size) {
+        CursorSupport.validateSize(size);
+        UUID cursorUuid = CursorSupport.parseOrNull(cursor);
         Pageable pageable = PageRequest.of(0, size + 1);
-        List<Post> entities = (cursor == null)
+        List<Post> entities = (cursorUuid == null)
                 ? postRepository.findAllByOrderByIdDesc(pageable)
-                : postRepository.findByIdLessThanOrderByIdDesc(resolveId(cursor), pageable);
-
-        boolean hasMore = entities.size() > size;
-        List<Post> page = hasMore ? entities.subList(0, size) : entities;
-        List<PostDTO> data = page.stream().map(postMapper::toDTO).toList();
-        String nextCursor = hasMore ? page.get(page.size() - 1).getUuid().toString() : null;
-        return new CursorResponse<>(data, new CursorResponse.Meta(nextCursor, size, hasMore));
+                : postRepository.findByIdLessThanOrderByIdDesc(
+                        CursorSupport.resolveId(postRepository::findByUuid, cursorUuid, Post::getId), pageable);
+        return CursorSupport.build(entities, size, postMapper::toDTO, Post::getUuid);
     }
 
     @Transactional(readOnly = true)
@@ -93,17 +92,5 @@ public class PostService {
         } else {
             post.setTags(List.of());
         }
-    }
-
-    private Long resolveId(String cursor) {
-        UUID uuid;
-        try {
-            uuid = UUID.fromString(cursor);
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor");
-        }
-        return postRepository.findByUuid(uuid)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor"))
-                .getId();
     }
 }
