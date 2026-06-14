@@ -1,11 +1,10 @@
 package id.my.agungdh.api.controller;
 
 import id.my.agungdh.api.dto.CommentDTO;
-import id.my.agungdh.api.dto.PageResponse;
+import id.my.agungdh.api.dto.CursorResponse;
 import id.my.agungdh.api.service.CommentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,8 +18,10 @@ public class CommentController {
     private final CommentService commentService;
 
     @GetMapping
-    public PageResponse<CommentDTO> findAll(Pageable pageable) {
-        return commentService.findAll(pageable);
+    public CursorResponse<CommentDTO> findAll(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return commentService.findAll(cursor, size);
     }
 
     @GetMapping("/{uuid}")

@@ -1,19 +1,21 @@
 package id.my.agungdh.api.service;
 
 import id.my.agungdh.api.dto.CommentDTO;
-import id.my.agungdh.api.dto.PageResponse;
+import id.my.agungdh.api.dto.CursorResponse;
 import id.my.agungdh.api.entity.Comment;
 import id.my.agungdh.api.entity.Post;
 import id.my.agungdh.api.mapper.CommentMapper;
 import id.my.agungdh.api.repository.CommentRepository;
 import id.my.agungdh.api.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -34,8 +36,17 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<CommentDTO> findAll(Pageable pageable) {
-        return PageResponse.from(commentRepository.findByParentIsNull(pageable).map(commentMapper::toDTO));
+    public CursorResponse<CommentDTO> findAll(String cursor, int size) {
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<Comment> entities = (cursor == null)
+                ? commentRepository.findByParentIsNullOrderByIdDesc(pageable)
+                : commentRepository.findByParentIsNullAndIdLessThanOrderByIdDesc(resolveId(cursor), pageable);
+
+        boolean hasMore = entities.size() > size;
+        List<Comment> page = hasMore ? entities.subList(0, size) : entities;
+        List<CommentDTO> data = page.stream().map(commentMapper::toDTO).toList();
+        String nextCursor = hasMore ? page.get(page.size() - 1).getUuid().toString() : null;
+        return new CursorResponse<>(data, new CursorResponse.Meta(nextCursor, size, hasMore));
     }
 
     @Transactional(readOnly = true)
@@ -78,5 +89,17 @@ public class CommentService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent comment not found"));
             comment.setParent(parent);
         }
+    }
+
+    private Long resolveId(String cursor) {
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(cursor);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor");
+        }
+        return commentRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor"))
+                .getId();
     }
 }

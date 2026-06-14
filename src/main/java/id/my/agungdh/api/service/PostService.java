@@ -1,6 +1,6 @@
 package id.my.agungdh.api.service;
 
-import id.my.agungdh.api.dto.PageResponse;
+import id.my.agungdh.api.dto.CursorResponse;
 import id.my.agungdh.api.dto.PostDTO;
 import id.my.agungdh.api.dto.TagDTO;
 import id.my.agungdh.api.entity.Category;
@@ -11,6 +11,7 @@ import id.my.agungdh.api.repository.CategoryRepository;
 import id.my.agungdh.api.repository.PostRepository;
 import id.my.agungdh.api.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,8 +40,17 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<PostDTO> findAll(Pageable pageable) {
-        return PageResponse.from(postRepository.findAll(pageable).map(postMapper::toDTO));
+    public CursorResponse<PostDTO> findAll(String cursor, int size) {
+        Pageable pageable = PageRequest.of(0, size + 1);
+        List<Post> entities = (cursor == null)
+                ? postRepository.findAllByOrderByIdDesc(pageable)
+                : postRepository.findByIdLessThanOrderByIdDesc(resolveId(cursor), pageable);
+
+        boolean hasMore = entities.size() > size;
+        List<Post> page = hasMore ? entities.subList(0, size) : entities;
+        List<PostDTO> data = page.stream().map(postMapper::toDTO).toList();
+        String nextCursor = hasMore ? page.get(page.size() - 1).getUuid().toString() : null;
+        return new CursorResponse<>(data, new CursorResponse.Meta(nextCursor, size, hasMore));
     }
 
     @Transactional(readOnly = true)
@@ -83,5 +93,17 @@ public class PostService {
         } else {
             post.setTags(List.of());
         }
+    }
+
+    private Long resolveId(String cursor) {
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(cursor);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor");
+        }
+        return postRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor"))
+                .getId();
     }
 }

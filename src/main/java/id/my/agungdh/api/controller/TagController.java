@@ -1,11 +1,10 @@
 package id.my.agungdh.api.controller;
 
-import id.my.agungdh.api.dto.PageResponse;
+import id.my.agungdh.api.dto.CursorResponse;
 import id.my.agungdh.api.dto.TagDTO;
 import id.my.agungdh.api.service.TagService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,8 +18,10 @@ public class TagController {
     private final TagService tagService;
 
     @GetMapping
-    public PageResponse<TagDTO> findAll(Pageable pageable) {
-        return tagService.findAll(pageable);
+    public CursorResponse<TagDTO> findAll(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return tagService.findAll(cursor, size);
     }
 
     @GetMapping("/{uuid}")

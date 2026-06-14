@@ -53,6 +53,52 @@ src/main/resources/db/migration/    — Flyway SQL migrations
 src/test/java/id/my/agungdh/api/    — tests
 ```
 
+## Pagination
+
+All list endpoints use **cursor-based pagination** (no offset/Pageable).
+
+### Contract
+
+Request: `?cursor=<uuid>&size=<n>` (both optional; `size` default 20, max 100)
+
+Response:
+```json
+{
+  "data": [...],
+  "meta": { "nextCursor": "<uuid-or-null>", "size": 20, "hasMore": true }
+}
+```
+
+### Cursor
+
+- The cursor is the **uuid** of the last visible item in the previous response (`meta.nextCursor`).
+- FE just copies `nextCursor` from the response into the next request — no encoding/decoding needed.
+- Server resolves `uuid` → internal `id` (via hash index, O(1)) and runs `WHERE id < :id ORDER BY id DESC LIMIT n+1`.
+- Invalid uuid format or uuid not found → `400 BAD_REQUEST`.
+- `size` must be `1..100` (see `CursorResponse.MAX_SIZE`) — otherwise `400 BAD_REQUEST`.
+
+### Sort
+
+- Default: `id DESC` (newest first, by internal auto-increment `id`). PK-indexed, scales well.
+
+### Repository convention
+
+Two methods per repository, both returning `List<E>` (not `Page` / `Slice`):
+- `findAllByOrderByIdDesc(Pageable)` — first page (no cursor)
+- `findByIdLessThanOrderByIdDesc(Long id, Pageable)` — subsequent pages
+
+For filtered lists (e.g. `Comment` with `parent IS NULL`), prefix the methods with the filter clause:
+- `findByParentIsNullOrderByIdDesc(Pageable)`
+- `findByParentIsNullAndIdLessThanOrderByIdDesc(Long id, Pageable)`
+
+Service fetches `size + 1` and checks `result.size() > size` to detect `hasMore`.
+
+### Why cursor (not offset)?
+
+- Stable when items are inserted/deleted between requests (offsets shift).
+- `id DESC` uses the PK index — no extra sort cost.
+- No "total count" query (expensive on large tables).
+
 ## Entity / DTO / Mapper Conventions
 
 ### Entity
